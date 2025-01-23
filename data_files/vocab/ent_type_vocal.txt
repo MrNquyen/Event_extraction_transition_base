@@ -1,0 +1,11 @@
+special_token_size	1
+token_size	6
+singleton_size	0
+singleton_max_count	1
+0	*UNK*	1
+1	per	62
+2	gpe	18
+3	org	13
+4	tim	11
+5	loc	9
+6	val	8

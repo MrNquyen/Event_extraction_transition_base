@@ -1,0 +1,15 @@
+special_token_size	2
+token_size	9
+singleton_size	3
+singleton_max_count	1
+0	*UNK*	1
+1	*NULL*	1
+2	person	11
+3	position	7
+4	entity	7
+5	time	4
+6	artifact	3
+7	destination	3
+8	agent	1
+9	attacker	1
+10	place	1

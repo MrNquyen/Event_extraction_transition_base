@@ -1,0 +1,12 @@
+special_token_size	2
+token_size	6
+singleton_size	0
+singleton_max_count	1
+0	*UNK*	1
+1	*NULL*	1
+2	end-position	6
+3	attack	5
+4	transport	3
+5	elect	2
+6	start-position	2
+7	nominate	2

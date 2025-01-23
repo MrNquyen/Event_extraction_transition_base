@@ -1,0 +1,38 @@
+special_token_size	1
+token_size	33
+singleton_size	8
+singleton_max_count	1
+0	*UNK*	1
+1	NNP	60
+2	NN	53
+3	IN	53
+4	DT	37
+5	JJ	33
+6	NNS	23
+7	.	22
+8	RB	19
+9	PRP	18
+10	,	18
+11	VBP	17
+12	VB	17
+13	CD	14
+14	TO	11
+15	VBN	11
+16	VBZ	9
+17	CC	9
+18	VBD	5
+19	NNPS	5
+20	MD	5
+21	PRP$	4
+22	VBG	4
+23	RP	2
+24	POS	2
+25	EX	2
+26	:	1
+27	WP	1
+28	WRB	1
+29	RBR	1
+30	$	1
+31	``	1
+32	JJS	1
+33	''	1

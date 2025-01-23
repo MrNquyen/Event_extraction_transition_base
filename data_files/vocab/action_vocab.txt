@@ -1,0 +1,25 @@
+special_token_size	1
+token_size	20
+singleton_size	0
+singleton_max_count	1
+0	*UNK*	1
+1	NO-PASS	425
+2	O-DELETE	325
+3	ENTITY-SHIFT	147
+4	SHIFT	136
+5	ENTITY-BACK	121
+6	ENTITY-GEN-per	62
+7	RIGHT-PASS	30
+8	ENTITY-GEN-gpe	18
+9	ENTITY-GEN-org	13
+10	ENTITY-GEN-tim	11
+11	ENTITY-GEN-loc	9
+12	ENTITY-GEN-val	8
+13	TRIGGER-GEN-end-position	6
+14	LEFT-PASS	5
+15	TRIGGER-GEN-attack	5
+16	COPY-SHIFT	5
+17	TRIGGER-GEN-transport	3
+18	TRIGGER-GEN-elect	2
+19	TRIGGER-GEN-start-position	2
+20	TRIGGER-GEN-nominate	2
