@@ -1,7 +1,7 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
 import random
 from torch.utils.data import DataLoader
 import nn_v2
@@ -164,7 +164,17 @@ class MainModel(nn.Module):
         print(f'context_emb, sent_vec type: {type(context_emb)} - {sent_vec}')
 
         log_prob_list, loss_roles, loss_rels, pred_ents, pred_tris, pre_args, pred_acts = \
-            self.shift_reduce(toks, context_emb, sent_vec, act_ids, acts, ents, tris, args)
+            self.shift_reduce(
+                toks, 
+                context_emb, 
+                sent_vec, 
+                act_ids, 
+                acts, 
+                is_train=True,
+                ents=ents, 
+                tris=tris, 
+                args=args
+            )
 
         act_loss = -torch.sum(log_prob_list)
         role_loss = torch.sum(loss_roles) if loss_roles else 0

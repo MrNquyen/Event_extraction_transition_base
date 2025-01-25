@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from icecream import ic
 
 # Activation functions
 def sigmoid(x):
@@ -38,7 +39,7 @@ def log_softmax(x):
 class Linear(nn.Module):
     def __init__(self, n_in, n_out, bias=True, activation='linear', init_w=None):
         super(Linear, self).__init__()
-        self.W = nn.Parameter(torch.randn(n_out, n_in) * 0.01) if init_w is None else nn.Parameter(init_w)
+        self.W = nn.Parameter(torch.randn((n_out, n_in)) * 0.01) if init_w is None else nn.Parameter(init_w)
         self.bias = nn.Parameter(torch.zeros(n_out)) if bias else None
         self.activation = activation
     
@@ -95,7 +96,10 @@ class LSTMCell(nn.Module):
         nn.init.kaiming_uniform_(self.weight_ih)
         nn.init.kaiming_uniform_(self.weight_hh)
 
-    def forward(self, x, hx, cx):
+    def forward(self, x, hx=None, cx=None):
+        # ic('Run in LSTM Cell')
+        # ic(hx.shape)
+        # ic(cx.shape)
         if cx is None:
             cx = torch.zeros(x.size(0), self.hidden_size, device=x.device)
         if x == None:
@@ -109,10 +113,10 @@ class LSTMCell(nn.Module):
         if self.training and self.dropout_h > 0.0:
             hx = F.dropout(hx, p=self.dropout_h, training=self.training)
 
-        print(f'x shape: {x.shape}')
-        print(f'hx shape: {hx.shape}')
-        print(f'self.weight_ih shape: {self.weight_ih.shape}')
-        print(f'self.weight_hh shape: {self.weight_hh.shape}')
+        # print(f'x shape: {x.shape}')
+        # print(f'hx shape: {hx.shape}')
+        # print(f'self.weight_ih shape: {self.weight_ih.shape}')
+        # print(f'self.weight_hh shape: {self.weight_hh.shape}')
 
         x = x.to(torch.float32)
         hx = hx.to(torch.float32)
@@ -140,9 +144,12 @@ class LSTMCell(nn.Module):
         i, f, g, o = gates.chunk(4, dim=-1)
         i, f, g, o = torch.sigmoid(i), torch.sigmoid(f), torch.tanh(g), torch.sigmoid(o)
 
-        cy = f * cx + i * g
-        hy = o * torch.tanh(cy)
+        # cy = f * cx + i * g
+        # hy = o * torch.tanh(cy)
 
+        cy = torch.mul(f, cx) + torch.mul(i, g)
+        hy = torch.mul(o, torch.tanh(cy))
+        
         return hy, cy
 
 class MultiLayerLSTM(nn.Module):
@@ -224,13 +231,10 @@ class LayerNorm(nn.Module):
         else:
             return self.transform(input)
 
-
-import torch
-import torch.nn as nn
-
 class StackLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, dropout_x=0., dropout_h=0.):
         super(StackLSTM, self).__init__()
+        self.input_size = input_size
         self.hidden_size = hidden_size
         self.cell = nn.LSTMCell(input_size, hidden_size)  # Using PyTorch's LSTMCell
         self.empty_embedding = nn.Parameter(torch.zeros(hidden_size), requires_grad=False)  # Equivalent to model.add_parameters in Dynet
@@ -257,13 +261,22 @@ class StackLSTM(nn.Module):
         :param idx: word idx in buffer or action_id in vocab
         :return:
         '''
+        # ic(self.states[0].shape)
         if len(self.states) == 0:
             init_h = torch.zeros((input.size(0), self.hidden_size), device=input.device)  # Ensure correct device (CPU/GPU)
             init_c = torch.zeros((input.size(0), self.hidden_size), device=input.device)
-            hx, cx = self.cell(input, (init_h, init_c))
+            ic(init_c.shape)
+            ic(init_h.shape)
+            ic(input.shape)
+            ic(self.hidden_size)
+            ic(self.cell)
+            hx, cx = self.cell.forward(input, (init_h, init_c))
+            # hx, cx = self.cell.forward(input, (init_h, init_c))
         else:
             pre_hx, pre_cx = self.states[-1]
-            hx, cx = self.cell(input, (pre_hx, pre_cx))
+            ic(pre_hx)
+            ic(pre_cx)
+            hx, cx = self.cell.forward(input, (pre_hx, pre_cx))
 
         self.states.append((hx, cx))
         self.indices.append(idx)

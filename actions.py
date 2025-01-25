@@ -2,7 +2,7 @@
 
 import numpy as np
 import json
-
+from icecream import ic
 
 
 
@@ -111,40 +111,54 @@ class Actions(object):
     # action check
 
     def is_ent_shift(self, act_id):
+        ic(self.entity_shift_id)
         return self.entity_shift_id == act_id
 
     def is_ent_back(self, act_id):
+        ic(self.entity_back_id)
         return self.entity_back_id == act_id
 
     def is_o_del(self, act_id):
+        ic(self.o_del_id)
         return self.o_del_id == act_id
 
     def is_shift(self, act_id):
+        ic(self.shift_id)
         return self.shift_id == act_id
 
     def is_back_shift(self, act_id):
+        ic(self.back_shift_id)
         return self.back_shift_id == act_id
 
     def is_copy_shift(self, act_id):
+        ic(self.copy_shift_id)
         return self.copy_shift_id == act_id
 
     def is_no_pass(self, act_id):
+        ic(self.no_pass_id)
         return self.no_pass_id == act_id
 
     def is_left_pass(self, act_id):
+        ic(self.left_pass_id)
         return self.left_pass_id == act_id
 
     def is_right_pass(self, act_id):
+        ic(self.right_pass_id)
         return self.right_pass_id == act_id
 
     def is_ent_gen(self, act_id):
+        ic([self.ent_gen_group])
         return act_id in self.ent_gen_group
 
     def is_tri_gen(self, act_id):
+        ic([self.tri_gen_group])
+        ic(act_id)
+        ic(act_id in self.tri_gen_group)
         return act_id in self.tri_gen_group
 
 
     def is_event_gen(self, act_id):
+        ic([self.event_gen_group])
         return act_id in self.event_gen_group
 
 

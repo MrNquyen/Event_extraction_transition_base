@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import tensorflow as tf
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from icecream import ic
 
 import nn_v2 as _nn
 import numpy as np
@@ -9,6 +12,12 @@ from actions import Actions
 from vocab import Vocab
 from event_constraints import EventConstraint
 import io_utils
+
+def pad(tensor, max_len, padding='post', truncating='post', value=0.0):
+    tensor = tensor.detach().numpy().tolist()
+    pad_tensor = pad_sequences([tensor], maxlen=max_len, padding=padding, truncating=truncating, value=value)
+    pad_tensor = torch.tensor(pad_tensor).to(torch.float32)
+    return pad_tensor
 
 class MultiTask(nn.Module):
     def __init__(self, config, encoder_output_dim, action_dict, ent_dict, tri_dict, arg_dict):
@@ -22,7 +31,7 @@ class MultiTask(nn.Module):
         self.bi_rnn_dim = bi_rnn_dim
 
         hidden_input_dim = lmda_dim * 3 + bi_rnn_dim * 2 + config['out_rnn_dim']
-
+        ic(hidden_input_dim)
         self.hidden_arg = _nn.Linear(hidden_input_dim, config['output_hidden_dim'],
                                     activation='tanh')
         self.output_arg = _nn.Linear(config['output_hidden_dim'], len(arg_dict))
@@ -64,7 +73,7 @@ class MultiTask(nn.Module):
         state_embed = ops.cat([beta_embed, lmda_embed, sigma_embed, delta_embed, out_embed, attn_rep], dim=0)
         hidden = self.hidden_arg(state_embed)
         out = self.output_arg(hidden)
-        np_score = out.detach().cpu().numpy().flatten()
+        np_score = out.detach().detach().numpy().flatten()
         return np.argmax(np_score)
 
     def position_aware_attn(self, hidden_mat, last_h, start1, ent1, start2, end2, seq_len):
@@ -89,7 +98,6 @@ class MultiTask(nn.Module):
 
 
 class ShiftReduce(nn.Module):
-
     def __init__(self, config, encoder_output_dim, action_dict, ent_dict, tri_dict, arg_dict):
         super(ShiftReduce, self).__init__()
         self.config = config
@@ -122,20 +130,15 @@ class ShiftReduce(nn.Module):
         self.tri_table = _nn.Embedding(len(tri_dict), config['trigger_embed_dim'])
 
         self.act = Actions(action_dict, ent_dict, tri_dict, arg_dict)
-
-        hidden_input_dim = bi_rnn_dim + lmda_dim * 3 + part_ent_dim \
-                           + config['action_rnn_dim'] + config['out_rnn_dim']
-
-        self.hidden_linear = _nn.Linear(hidden_input_dim, config['output_hidden_dim'], activation='tanh')
+        ic(action_dict)
         self.output_linear = _nn.Linear(config['output_hidden_dim'], len(action_dict))
         entity_embed_dim = config['entity_embed_dim']
         trigger_embed_dim = config['trigger_embed_dim']
-
         ent_to_lmda_dim = config['part_ent_rnn_dim'] + entity_embed_dim #+ config['sent_vec_dim'] * 4
         self.ent_to_lmda = _nn.Linear(ent_to_lmda_dim, lmda_dim, activation='tanh')
         tri_to_lmda_dim = bi_rnn_dim + trigger_embed_dim #+ config['sent_vec_dim']
         self.tri_to_lmda = _nn.Linear(tri_to_lmda_dim, lmda_dim, activation='tanh')
-
+        
         self.hidden_arg = _nn.Linear(lmda_dim * 2 + self.bi_rnn_dim, config['output_hidden_dim'],
                                     activation='tanh')
         self.output_arg = _nn.Linear(config['output_hidden_dim'], len(arg_dict))
@@ -149,7 +152,7 @@ class ShiftReduce(nn.Module):
         # Replace DyNet code with PyTorch equivalents
         ent_dic = dict()
         tri_dic = dict()
-
+        print(f'Len args {len(args)}')
         gold_arg_dict = {(arg[0], arg[2]): arg[-1] for arg in args}  # (ent_start, tri_idx):role_type
         same_event_ents = self.same(args)
 
@@ -220,10 +223,32 @@ class ShiftReduce(nn.Module):
             out_embed = self.out_rnn.embedding()
 
 
+            if len(lmda_embed) != beta_embed.shape[1]:
+                lmda_embed = pad(lmda_embed, beta_embed.shape[1])
+            if len(sigma_embed) != beta_embed.shape[1]:
+                sigma_embed = pad(sigma_embed, beta_embed.shape[1])
+            if len(delta_embed) != beta_embed.shape[1]:
+                delta_embed = pad(delta_embed, beta_embed.shape[1])
+            if len(part_ent_embed) != beta_embed.shape[1]:
+                part_ent_embed = pad(part_ent_embed, beta_embed.shape[1])
+            if len(action_embed) != beta_embed.shape[1]:
+                action_embed = pad(action_embed, beta_embed.shape[1])
+            if len(out_embed) != beta_embed.shape[1]:
+                out_embed = pad(out_embed, beta_embed.shape[1])
+            ic(len(beta_embed))
+            ic(len(lmda_embed))
+            ic(len(sigma_embed))
+            ic(len(delta_embed))
+            ic(len(part_ent_embed))
+            ic(len(action_embed))
+            ic(len(out_embed))
+
+
             state_embed = ops.cat([beta_embed, lmda_embed, sigma_embed, delta_embed, part_ent_embed, action_embed, out_embed], dim=0)
             if is_train:
                 state_embed = F.dropout(state_embed, self.config['dp_out'])
-            hidden_rep = self.hidden_linear(state_embed)
+            self.init_hidden_input_dim(state_embed.shape[0], self.config['output_hidden_dim'])
+            hidden_rep = self.hidden_linear(state_embed.T)
 
             logits = self.output_linear(hidden_rep).to(torch.float64)
             # log_softmax = _nn.LogSoftmax(dim=-1)
@@ -234,18 +259,24 @@ class ShiftReduce(nn.Module):
 
             if is_train:
                 action = oracle_actions[steps]
+                # action = int(action)
                 action_str = oracle_action_strs[steps]
+                ic(action)
+                ic(valid_actions)
                 if action not in valid_actions:
                     raise RuntimeError('Action %s dose not in valid_actions'%action_str)
                 # append the action-specific loss
                 #if self.act.is_o_del(action) or self.act.is_tri_gen(action):
-                action = torch.tensor(action)  # ensure 'action' is a tensor
-                loss = torch.gather(log_probs, dim=1, index=action.unsqueeze(1))
+                # action = torch.tensor(action)  # ensure 'action' is a tensor
+                ic(log_probs.shape)
+                ic(action)
+                # loss = torch.gather(log_probs, dim=1, index=action.unsqueeze(0))
+                loss = log_probs[:, action] 
                 losses.append(loss)
                 #val, idx = log_probs.tensor_value().topk(0, 5)
 
             else:
-                np_log_probs = log_probs.cpu().numpy()
+                np_log_probs = log_probs.detach().numpy()
                 act_prob = np.max(np_log_probs)
                 action = np.argmax(np_log_probs)
                 action_str = self.act.to_act_str(action)
@@ -264,9 +295,15 @@ class ShiftReduce(nn.Module):
                 hx, idx = buffer.pop()
                 type_id = self.act.to_tri_id(action)
                 tri_dic[idx] = (idx, type_id)
-
-                tri_embed = self.tri_table[type_id]
-                tri_rep = self.tri_to_lmda(ops.cat([hx, tri_embed], dim=0))
+                tri_embed = self.tri_table[torch.tensor(type_id)]
+                ic(tri_embed.shape)
+                ic(hx.shape)
+                tri_cat = ops.cat([hx, tri_embed.reshape(1, -1)], dim=0)
+                ic(tri_cat.shape)
+                self.init_tri_to_lmda(
+                    in_features=tri_cat.shape[0],
+                    out_features=self.config['part_ent_rnn_dim'] + self.config['entity_embed_dim'])
+                tri_rep = self.tri_to_lmda(tri_cat.T)
                 #tri_rep = self.tri_to_lmda(hx)
                 self.lambda_var.push(tri_rep, idx, _nn.LambdaVar.TRIGGER)
 
@@ -373,8 +410,12 @@ class ShiftReduce(nn.Module):
             else:
                 raise RuntimeError('Unknown action type:'+str(action))
 
-
-            self.actions_rnn.push(self.act_table[action], action)
+            act_table_action = self.act_table[torch.tensor(action)]
+            ic(act_table_action.shape)
+            ic(self.actions_rnn)
+            ic(action)
+            ic(self.actions_rnn.hidden_size)
+            self.actions_rnn.push(act_table_action, action)
 
             steps += 1
 
@@ -399,30 +440,38 @@ class ShiftReduce(nn.Module):
 
         return losses, loss_roles, loss_rels, set(ent_dic.values()), set(tri_dic.values()), pred_args, pred_action_strs
 
-def get_valid_args(self, ent_type_id, tri_type_id):
-            return self.cached_valid_args[(ent_type_id, tri_type_id)]
+    def init_tri_to_lmda(self, in_features, out_features, activation='tanh'):
+        self.tri_to_lmda = _nn.Linear(in_features, out_features, activation=activation)
 
 
-def clear(self):
-    self.sigma_rnn.clear()
-    self.delta_rnn.clear()
-    self.part_ent_rnn.clear()
-    self.actions_rnn.clear()
-    self.lambda_var.clear()
-    self.out_rnn.clear()
+    def init_hidden_input_dim(self, in_features, out_features, activation='tanh'):
+        self.hidden_linear = _nn.Linear(in_features, out_features, activation=activation)
+        
+
+    def get_valid_args(self, ent_type_id, tri_type_id):
+                return self.cached_valid_args[(ent_type_id, tri_type_id)]
 
 
-def same(self, args):
-    same_event_ents = set()
-    for arg1 in args:
-        ent_start1, ent_end1, tri_idx1, _ = arg1
-        for arg2 in args:
-            ent_start2, ent_end2, tri_idx2, _ = arg2
-            if tri_idx1 == tri_idx2:
-                same_event_ents.add((ent_start1, ent_start2))
-                same_event_ents.add((ent_start2, ent_start1))
+    def clear(self):
+        self.sigma_rnn.clear()
+        self.delta_rnn.clear()
+        self.part_ent_rnn.clear()
+        self.actions_rnn.clear()
+        self.lambda_var.clear()
+        self.out_rnn.clear()
 
-    return same_event_ents
+
+    def same(self, args):
+        same_event_ents = set()
+        for arg1 in args:
+            ent_start1, ent_end1, tri_idx1, _ = arg1
+            for arg2 in args:
+                ent_start2, ent_end2, tri_idx2, _ = arg2
+                if tri_idx1 == tri_idx2:
+                    same_event_ents.add((ent_start1, ent_start2))
+                    same_event_ents.add((ent_start2, ent_start1))
+
+        return same_event_ents
         
 
 

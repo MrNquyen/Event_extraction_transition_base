@@ -53,7 +53,7 @@ grn_dim: 180
 grn_steps: 5
 
 lmda_rnn_dim: 120
-part_ent_rnn_dim: 100
+part_ent_rnn_dim: 60
 action_rnn_dim: 60
 out_rnn_dim: 60
 dp_state: 0.15
@@ -66,8 +66,8 @@ output_hidden_dim: 160
 dp_out: 0.2
 
 # for tree rnn config
-action_embed_dim: 50
-trigger_embed_dim: 20
+action_embed_dim: 60
+trigger_embed_dim: 280
 entity_embed_dim: 20
 argument_embed_dim: 20
 edge_embed_dim: 30

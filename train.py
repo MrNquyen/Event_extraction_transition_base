@@ -1,6 +1,6 @@
 import os
 import math
-
+from icecream import ic
 from model_v2 import *
 
 from io_utils import read_pickle, write_lines, read_lines
@@ -20,6 +20,7 @@ class Trainer(object):
 
         self.unk_idx = self.token_vocab[Vocab.UNK]
         joint_config['n_chars'] = len(self.char_vocab)
+        ic(self.action_vocab)
         self.trans_model = MainModel(
             self.token_vocab.get_vocab_size(),
             self.action_vocab,

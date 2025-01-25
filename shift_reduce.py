@@ -138,7 +138,7 @@ class ShiftReduce(object):
 
         hidden_input_dim = bi_rnn_dim + lmda_dim * 3 + part_ent_dim \
                         + config['action_rnn_dim'] + config['out_rnn_dim']
-
+        
         self.hidden_linear = nn.Linear(hidden_input_dim, config['output_hidden_dim'], activation='tanh')
         self.output_linear = nn.Linear(config['output_hidden_dim'], len(action_dict))
         entity_embed_dim = config['entity_embed_dim']
